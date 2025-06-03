@@ -76,6 +76,9 @@ local _ClassConfig = {
             "Holy Light",
             "Pious Light",
             "Ancient: Hallowed Light",
+            "Over Raided Healing",
+            "Over Raided Healing II",
+            "Over Raided Healing III",
         },
         ['RemedyHeal'] = { -- Not great until 96/RoF (Graceful)
             "Remedy",
@@ -88,6 +91,7 @@ local _ClassConfig = {
         },
         ['GroupHeal'] = {
             -----Group Heals No Cure Slot 5
+            "Holy Cataclysm",
             "Word of Health",
             "Word of Healing",
             "Word of Vigor",
@@ -98,6 +102,9 @@ local _ClassConfig = {
         },
         ['SelfHPBuff'] = {
             --Self Buff for Mana Regen and armor
+            "Armor of the Martyr III",
+            "Armor of the Martyr II",
+            "Armor of the Martyr",
             "Armor of Protection",
             "Blessed Armor of the Risen",
             "Ancient: High Priest's Bulwark",
@@ -106,6 +113,10 @@ local _ClassConfig = {
         },
         ['AegoBuff'] = {
             ----Use HP Type one until Temperance at 40... Group Buff at 45 (Blessing of Temperance)
+            "Armor of the Crab IV",
+            "Armor of the Crab III",
+            "Armor of the Crab II",
+            "Armor of the Crab",
             "Hand of Conviction",
             "Hand of Virtue",
             "Blessing of Aegolism",
@@ -128,6 +139,7 @@ local _ClassConfig = {
             "Holy Armor",
         },
         ['SingleVieBuff'] = {
+            "Tower of Vie",
             "Panoply of Vie",
             "Bulwark of Vie",
             "Protection of Vie",
@@ -201,6 +213,7 @@ local _ClassConfig = {
         -- },
         ['CurePoison'] = {
             -- "Puratas", -- Excessive Cast Time
+            "Exorcise en Masse",
             "Antidote",
             -- "Eradicate Poison", -- not currently available on Laz
             "Abolish Poison",
@@ -211,6 +224,7 @@ local _ClassConfig = {
             -- "Eradicate Disease", -- not currently available on Laz
             "Counteract Disease",
             "Cure Disease",
+            "Exorcise en Masse",
         },
         ['CureCurse'] = {
             -- "Eradicate Curse", -- not currently available on Laz
@@ -218,6 +232,7 @@ local _ClassConfig = {
             "Remove Curse",
             "Remove Lesser Curse",
             "Remove Minor Curse",
+            "Exorcise en Masse",
         },
         ['YaulpSpell'] = {
             "Yaulp VII",
@@ -246,6 +261,7 @@ local _ClassConfig = {
             "Ward Undead",
         },
         ['MagicNuke'] = {
+            "Timeless: Chromastrike III",
             "Chromastrike", --Laz specific
             -- "Calamity", -- Chroma is better
             "Reproach",

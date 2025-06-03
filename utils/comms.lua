@@ -23,6 +23,20 @@ function Comms.BroadcastUpdate(module, event, data)
     })
 end
 
+--- Broadcasts current buff status
+function Comms.BroadcastBuffStatus()
+    local buffs = {}
+    for i = 1, 40 do
+        local name = mq.TLO.Me.Buff(i).Name()
+        if name then
+            buffs[name] = true
+        end
+    end
+    Comms.BroadcastUpdate("buffs", "buff_status", {
+        buffs = buffs,
+    })
+end
+
 --- Prints a group message with the given format and arguments.
 --- @param msg string: The message format string.
 --- @param ... any: Additional arguments to format the message.
