@@ -18,6 +18,7 @@ local Set         = require("mq.Set")
 local ClassLoader = require('utils.classloader')
 local DanNet      = require('lib.dannet.helpers')
 local Icons       = require('mq.ICONS')
+local actors      = require('actors')
 
 require('utils.datatypes')
 
@@ -55,6 +56,9 @@ Module.TempSettings.MissingSpells            = {}
 Module.TempSettings.MissingSpellsHighestOnly = true
 Module.TempSettings.CorpsesAlreadyRezzed     = {}
 Module.TempSettings.QueuedAbilities          = {}
+Module.TempSettings.CureActor                = nil
+Module.TempSettings.GroupCureStatus          = {}
+Module.TempSettings.LastCureBroadcast        = 0
 
 Module.CommandHandlers                       = {
     setmode = {
@@ -375,6 +379,16 @@ function Module.New()
     return newModule
 end
 
+function Module:InitCureMailbox()
+    Logger.log_info("Initializing Cure Mailbox System...")
+    
+    self.TempSettings.CureActor = actors.register('cure_status', function(message)
+        self:HandleCureMessage(message)
+    end)
+    
+    Logger.log_info("Cure Mailbox System initialized")
+end
+
 function Module:Init()
     self.ModuleLoaded = false --reinitialize to stop class module UI render during persona switch (avoid crash conditions)
     Logger.log_debug("\agInitializing Core Class Module...")
@@ -382,6 +396,8 @@ function Module:Init()
 
     -- set dynamic names.
     self:SetDynamicNames()
+
+    self:InitCureMailbox()
 
     self.ModuleLoaded = true
 
@@ -1001,49 +1017,154 @@ function Module:RunHealRotation()
     end
 end
 
+-- Handle incoming cure status messages
+function Module:HandleCureMessage(message)
+    if not message or not message.content then return end
+    
+    local content = message.content
+    local sender_name = message.sender.character
+    
+    if content.id == 'cure_status_update' then
+        -- Store the cure status update from another character
+        self.TempSettings.GroupCureStatus[sender_name] = {
+            poisoned = content.poisoned,
+            diseased = content.diseased,
+            cursed = content.cursed,
+            corrupted = content.corrupted,
+            mezzed = content.mezzed,
+            timestamp = os.time(),
+            in_range = true -- they sent us a message, so they're in range
+        }
+        
+        Logger.log_verbose("[CureMailbox] Received status from %s: Poison=%s, Disease=%s, Curse=%s, Corruption=%s, Mez=%s", 
+            sender_name, 
+            content.poisoned or "NULL", 
+            content.diseased or "NULL", 
+            content.cursed or "NULL", 
+            content.corrupted or "NULL", 
+            content.mezzed or "NULL")
+    elseif content.id == 'cure_request' then
+        -- Someone is requesting cure status, send ours immediately
+        self:BroadcastCureStatus()
+    elseif content.id == 'character_leaving' then
+        -- Character is leaving, remove from our tracking
+        self.TempSettings.GroupCureStatus[sender_name] = nil
+        Logger.log_verbose("[CureMailbox] %s left the group", sender_name)
+    end
+end
+
+-- Collect our current cure status
+function Module:CollectCureStatus()
+    local me = mq.TLO.Me
+    
+    return {
+        id = 'cure_status_update',
+        poisoned = (me.Poisoned.ID() and me.Poisoned.ID() > 0) and tostring(me.Poisoned.ID()) or nil,
+        diseased = (me.Diseased.ID() and me.Diseased.ID() > 0) and tostring(me.Diseased.ID()) or nil,
+        cursed = (me.Cursed.ID() and me.Cursed.ID() > 0) and tostring(me.Cursed.ID()) or nil,
+        corrupted = (me.Corrupted.ID() and me.Corrupted.ID() > 0) and tostring(me.Corrupted.ID()) or nil,
+        mezzed = (me.Mezzed.ID() and me.Mezzed.ID() > 0) and tostring(me.Mezzed.ID()) or nil,
+    }
+end
+
+-- Broadcast our cure status to all group members
+function Module:BroadcastCureStatus()
+    if not self.TempSettings.CureActor then return end
+    
+    local cure_data = self:CollectCureStatus()
+    
+    -- Send to all characters (no specific addressing = broadcast)
+    self.TempSettings.CureActor:send({}, cure_data)
+    
+    self.TempSettings.LastCureBroadcast = os.clock()
+    Logger.log_verbose("[CureMailbox] Broadcasted cure status")
+end
+
+-- Clean up old cure status entries
+function Module:CleanupOldCureStatus()
+    local cleanup_threshold = os.time() - 30 -- 30 seconds
+    for char_name, status in pairs(self.TempSettings.GroupCureStatus) do
+        if status.timestamp < cleanup_threshold then
+            self.TempSettings.GroupCureStatus[char_name] = nil
+            Logger.log_verbose("[CureMailbox] Cleaned up stale cure data for %s", char_name)
+        end
+    end
+end
+
+-- New RunCureRotation using Actors mailbox
 function Module:RunCureRotation()
     if (os.clock() - self.TempSettings.CureCheckTimer) < Config:GetSetting('CureInterval') then return end
-
+    
     self.TempSettings.CureCheckTimer = os.clock()
-
-    local dannetPeers = mq.TLO.DanNet.PeerCount()
+    
+    -- Initialize mailbox if not already done
+    if not self.TempSettings.CureActor then
+        self:InitCureMailbox()
+        return -- Give it a frame to initialize
+    end
+    
+    -- Broadcast our status every few seconds or if we have new debuffs
+    if (os.clock() - self.TempSettings.LastCureBroadcast) > 2 then
+        self:BroadcastCureStatus()
+    end
+    
+    -- Clean up old entries
+    self:CleanupOldCureStatus()
+    
     local checks = {
-        { type = "Poison",     check = "Me.Poisoned.ID", },
-        { type = "Disease",    check = "Me.Diseased.ID", },
-        { type = "Curse",      check = "Me.Cursed.ID", },
-        { type = "Corruption", check = "Me.Corrupted.ID", },
-        { type = "Mezzed",     check = "Me.Mezzed.ID", },
+        { type = "Poison",     field = "poisoned" },
+        { type = "Disease",    field = "diseased" },
+        { type = "Curse",      field = "cursed" },
+        { type = "Corruption", field = "corrupted" },
+        { type = "Mezzed",     field = "mezzed" },
     }
-
-    -- Me.TotalCounters does not work on emu we need to check everything.
-
-    for i = 1, dannetPeers do
-        ---@diagnostic disable-next-line: redundant-parameter
-        local peer = mq.TLO.DanNet.Peers(i)()
-        if peer and peer:len() > 0 then
-            if mq.TLO.SpawnCount(string.format("pc =%s radius 150", peer))() == 1 then
-                Logger.log_verbose("\ag[Cures] %s is in range - checking for curables", peer)
-                for _, data in ipairs(checks) do
-                    local effectId = DanNet.query(peer, data.check, 1000) or "null"
-                    Logger.log_verbose("\ay[Cures] %s :: %s [%s] => %s", peer, data.check, data.type, effectId)
-
-                    if effectId:lower() ~= "null" and effectId ~= "0" then
-                        local cureTarget = mq.TLO.Spawn(string.format("pc =%s", peer))
-                        if cureTarget and cureTarget() then
-                            -- Cure it!
-                            if self.ClassConfig.Cures and self.ClassConfig.Cures.CureNow then
-                                Comms.HandleAnnounce(
-                                    string.format('Attempting to cure %s of %s', cureTarget.CleanName() or "Target", data.type),
-                                    Config:GetSetting('CureAnnounceGroup'),
-                                    Config:GetSetting('CureAnnounce'))
-                                Core.SafeCallFunc("CureNow", self.ClassConfig.Cures.CureNow, self, data.type, cureTarget.ID())
-                            end
+    
+    -- Check our own status first
+    local my_name = mq.TLO.Me.CleanName()
+    local my_cure_status = self:CollectCureStatus()
+    
+    for _, data in ipairs(checks) do
+        local effectId = my_cure_status[data.field]
+        if effectId then
+            Logger.log_verbose("[Cures] %s :: %s [%s] => %s", my_name, "Me." .. data.type, data.type, effectId)
+            
+            -- Cure ourselves
+            if self.ClassConfig.Cures and self.ClassConfig.Cures.CureNow then
+                Comms.HandleAnnounce(
+                    string.format('Attempting to cure %s of %s', my_name, data.type),
+                    Config:GetSetting('CureAnnounceGroup'),
+                    Config:GetSetting('CureAnnounce'))
+                Core.SafeCallFunc("CureNow", self.ClassConfig.Cures.CureNow, self, data.type, mq.TLO.Me.ID())
+            end
+        end
+    end
+    
+    -- Check group members from mailbox data
+    for char_name, cure_status in pairs(self.TempSettings.GroupCureStatus) do
+        -- Verify the character is actually in range (additional safety check)
+        if mq.TLO.SpawnCount(string.format("pc =%s radius 150", char_name))() == 1 then
+            Logger.log_verbose("[CureMailbox] %s is in range - checking for curables", char_name)
+            
+            for _, data in ipairs(checks) do
+                local effectId = cure_status[data.field]
+                Logger.log_verbose("[CureMailbox] %s :: %s [%s] => %s", char_name, data.field, data.type, effectId or "NULL")
+                
+                if effectId and effectId ~= "0" then
+                    local cureTarget = mq.TLO.Spawn(string.format("pc =%s", char_name))
+                    if cureTarget and cureTarget() then
+                        -- Cure it!
+                        if self.ClassConfig.Cures and self.ClassConfig.Cures.CureNow then
+                            Comms.HandleAnnounce(
+                                string.format('Attempting to cure %s of %s', cureTarget.CleanName() or "Target", data.type),
+                                Config:GetSetting('CureAnnounceGroup'),
+                                Config:GetSetting('CureAnnounce'))
+                            Core.SafeCallFunc("CureNow", self.ClassConfig.Cures.CureNow, self, data.type, cureTarget.ID())
                         end
                     end
                 end
             end
         else
-            Logger.log_verbose("\ao[Cures] %d::%s is in \arNOT\ao range", i, peer or "Unknown")
+            Logger.log_verbose("[CureMailbox] %s is NOT in range", char_name)
         end
     end
 end
@@ -1281,6 +1402,7 @@ function Module:OnZone()
     if not mq.TLO.Me.Zoning() then
         local addDelay = 8 * (mq.TLO.EverQuest.Ping() or 150)     -- add'l delay to ensure we are fully loaded
         mq.delay(addDelay)
+        self:OnZoneCureMailbox()
         self:SetPetHold()
     end
 end

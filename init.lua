@@ -25,6 +25,11 @@ local Events      = require("utils.events")
 local Ui          = require("utils.ui")
 local Comms       = require("utils.comms")
 local Strings     = require("utils.strings")
+-- Beginnings of Actors communications
+local Status      = require('modules.status')
+
+-- In your init function
+Status.Init()
 
 -- Initialize class-based moduldes
 local Modules     = require("utils.modules")
@@ -192,6 +197,7 @@ local function RGInit(...)
     -- complex objects are passed by reference so we can just use these without having to pass them back in for saving.
     Modules:ExecAll("Init")
     Config.Globals.SubmodulesLoaded = true
+    Status.Init()
 
     initPctComplete = 30
     initMsg = "Updating Command Handlers..."
@@ -308,6 +314,8 @@ local function Main()
         -- sometimes this can get out of sync.
         Casting.UseGem = mq.TLO.Me.NumGems()
     end
+
+    Status.Pulse()
 
     if Config.Globals.PauseMain then
         mq.delay(100)
