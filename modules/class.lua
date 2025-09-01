@@ -1235,11 +1235,14 @@ function Module:RunCureRotation(combat_state)
 
     self.TempSettings.CureChecksStale = false
 
-    local dannetPeers = mq.TLO.DanNet.PeerCount()
+    local dannetPeers = 0
+    if mq.TLO.Plugin('MQ2DanNet')() then
+        dannetPeers = mq.TLO.DanNet.PeerCount()
+    end
 
     for i = 1, dannetPeers do
         ---@diagnostic disable-next-line: redundant-parameter
-        local peer = mq.TLO.DanNet.Peers(i)()
+        local peer = mq.TLO.Plugin('MQ2DanNet')() and mq.TLO.DanNet.Peers(i)() or nil
         if peer and peer:len() > 0 then
             local startindex = string.find(peer, "_")
             if startindex then
