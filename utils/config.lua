@@ -708,6 +708,17 @@ Config.DefaultConfig = {
         Answer = "You can set the [FollowMarkTarget] option to true to automatically target the MA's Marked target.",
     },
 
+    ['TreatRaidAsGroup']     = {
+        DisplayName = "Treat Raid as Group",
+        Category = "Engage",
+        Index = 17,
+        Tooltip = "When in a raid, use Raid Main Assist/Main Tank as if they were Group roles.",
+        Default = false,
+        ConfigType = "Advanced",
+        FAQ = "How do I make raid MA/MT behave like group roles?",
+        Answer = "Enable [TreatRaidAsGroup] to have RGMercs use Raid Main Assist/Main Tank anywhere group MA/MT would normally be used.",
+    },
+
     -- [SPELLS/ABILS] --
     ['ManaToNuke']           = {
         DisplayName = "Mana to Nuke",
