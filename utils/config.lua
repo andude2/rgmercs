@@ -924,6 +924,16 @@ Config.DefaultConfig = {
         FAQ = "Why are my songs not landing before casting a new one?",
         Answer = "You can set the [SongClipDelayFact] option to the number of milliseconds to wait before casting a new song.",
     },
+    ['UseExactSpellNames']   = {
+        DisplayName = "Use Exact Spell Names",
+        Category = "Spells/Abils",
+        Index = 18,
+        Tooltip = "This will cause RGMercs to use '/cast =<Spell>' which , must be supported by your MQ version but will avoid things like 'Bane' casting 'Bane of Nife' instead.",
+        Default = false,
+        ConfigType = "Advanced",
+        FAQ = "Why is the wrong spell being cast/a spell not being cast when it says it is?",
+        Answer = "If the spell name is not unique, you can set the [UseExactSpellNames] option to true to use the exact spell name when casting.",
+    },
 
     -- [ Tank/MA ] --
     ['MovebackWhenTank']     = {
@@ -1014,16 +1024,6 @@ Config.DefaultConfig = {
         FAQ = "Why am I trying to buff every time we stop moving?",
         Answer = "You can set the [BuffWaitMoveTimer] option to the number of seconds to wait after stopping movement before doing buffs.",
     },
-    ['DoSelfWard']           = {
-        DisplayName = "Enable Wards",
-        Category = "Buffs",
-        Index = 9,
-        Tooltip = "Enable Self Ward Spells",
-        Default = false,
-        ConfigType = "Normal",
-        FAQ = "Why am I not casting Wards?",
-        Answer = "You can set the [DoSelfWard] option to true to enable Ward Type Spells.",
-    },
     ['MountItem']            = {
         DisplayName = "Mount Item",
         Category = "Buffs",
@@ -1095,6 +1095,13 @@ Config.DefaultConfig = {
         FAQ = "How do I get rid of the TOB Debuff, Curse of Subjugation?",
         Answer =
         "If you select to Use Aureate's Bane on the Buff Tab of the main config options, you will attempt to clear Curse of Subjugation automatically.",
+    },
+    ['BreakInvisForSay']     = {
+        DisplayName = "Break Invis for Say Commands",
+        Category = "Buffs",
+        Index = 9,
+        Tooltip = "Break Invis as part of /rgl say, qsay or rsay commands.",
+        Default = false,
     },
 
     -- [ HEAL/REZ] --
@@ -1194,7 +1201,7 @@ Config.DefaultConfig = {
         Answer = "You can set the [PetHealPoint] option to the percent health you would like to start using the Pet Heal Rotation at.\n" ..
             "You also need to set the [DoPetHeals] option to true to heal pets in your group.",
     },
-    ['BreakInvis']           = {
+    ['BreakInvisForHealing'] = {
         DisplayName = "Break Invis",
         Category = "Heal/Rez",
         Index = 9,
