@@ -164,8 +164,7 @@ local function RGInit(...)
         "MQ2Rez",
         "MQ2AdvPath",
         "MQ2MoveUtils",
-        "MQ2Nav",
-        "MQ2DanNet", })
+        "MQ2Nav", })
 
     unloadedPlugins = Core.UnCheckPlugins({ "MQ2Melee", "MQ2Twist", })
 
@@ -201,7 +200,10 @@ local function RGInit(...)
     initMsg = "Setting Assist..."
     local mainAssist = mq.TLO.Me.CleanName()
 
-    if mq.TLO.Group() and mq.TLO.Group.MainAssist() then
+    -- Prefer Raid MA when configured and present; otherwise use Group MA if available
+    if Config:GetSetting('TreatRaidAsGroup') and mq.TLO.Raid.Members() > 0 and mq.TLO.Raid.MainAssist(1)() then
+        mainAssist = mq.TLO.Raid.MainAssist(1).CleanName() or mq.TLO.Raid.MainAssist(1).Name() or mainAssist
+    elseif mq.TLO.Group() and mq.TLO.Group.MainAssist() then
         mainAssist = mq.TLO.Group.MainAssist() or ""
     end
 
@@ -220,8 +222,12 @@ local function RGInit(...)
         end
     end
 
-    if (not mainAssist or mainAssist == "") and mq.TLO.Group.Members() > 0 then
-        mainAssist = mq.TLO.Group.MainAssist.DisplayName()
+    if (not mainAssist or mainAssist == "") then
+        if Config:GetSetting('TreatRaidAsGroup') and mq.TLO.Raid.Members() > 0 and mq.TLO.Raid.MainAssist(1)() then
+            mainAssist = mq.TLO.Raid.MainAssist(1).CleanName()
+        elseif mq.TLO.Group.Members() > 0 then
+            mainAssist = mq.TLO.Group.MainAssist.DisplayName()
+        end
     end
 
     if mainAssist:len() > 0 then
@@ -242,9 +248,14 @@ local function RGInit(...)
     initMsg = "We deleted the thing that used to be here..."
 
     initPctComplete = 60
-    initMsg = "Setting up MQ2DanNet..."
+    initMsg = "Configuring optional integrations..."
     if mq.TLO.Plugin("MQ2DanNet")() then
         Core.DoCmd("/squelch /dnet commandecho off")
+    end
+    if not mq.TLO.Plugin('MQ2DanNet')() then
+        if Config:GetSetting('AssistOutside') then
+            Logger.log_info('AssistOutside is enabled but MQ2DanNet is not loaded; out-of-group assist will be limited.')
+        end
     end
 
     Core.DoCmd("/stick set breakontarget on")

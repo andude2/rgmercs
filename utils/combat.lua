@@ -168,7 +168,7 @@ function Combat.MercEngage()
     if merc() and Targeting.GetTargetID() == Config.Globals.AutoTargetID and Targeting.GetTargetDistance() < Config:GetSetting('AssistRange') then
         if Targeting.GetTargetPctHPs() <= Config:GetSetting('AutoAssistAt') or                         -- Hit Assist HP
             merc.Class.ShortName():lower() == "clr" or                                                 -- Cleric can engage right away
-            (merc.Class.ShortName():lower() == "war" and mq.TLO.Group.MainTank.ID() == merc.ID()) then -- Merc is our Main Tank
+            (merc.Class.ShortName():lower() == "war" and Core.GetMainTankID() == merc.ID()) then       -- Merc is our Main Tank
             return true
         end
     end
@@ -436,7 +436,10 @@ function Combat.FindBestAutoTarget(validateFn)
         -- swapping to non-NPCs if the  MA is trying to heal/buff a friendly or themselves.
         if Config:GetSetting('AssistOutside') then
             --- @diagnostic disable-next-line: redundant-parameter
-            local peer = mq.TLO.DanNet.Peers(Config.Globals.MainAssist)()
+            local peer = ''
+            if mq.TLO.Plugin('MQ2DanNet')() then
+                peer = mq.TLO.DanNet.Peers(Config.Globals.MainAssist)() or ''
+            end
             local assistTarget = nil
 
             if peer:len() then

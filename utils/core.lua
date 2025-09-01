@@ -119,13 +119,31 @@ end
 --- Retrieves the ID of the main assist in the group.
 --- @return number The ID of the main assist in the group.
 function Core.GetGroupMainAssistID()
+    if Config:GetSetting('TreatRaidAsGroup') and mq.TLO.Raid.Members() > 0 then
+        local rma = mq.TLO.Raid.MainAssist(1)
+        return (rma and rma.ID() or 0)
+    end
     return (mq.TLO.Group.MainAssist.ID() or 0)
 end
 
 --- Retrieves the name of the main assist in the group.
 --- @return string The name of the main assist in the group.
 function Core.GetGroupMainAssistName()
+    if Config:GetSetting('TreatRaidAsGroup') and mq.TLO.Raid.Members() > 0 then
+        local rma = mq.TLO.Raid.MainAssist(1)
+        return (rma and (rma.CleanName() or rma.Name()) or "")
+    end
     return (mq.TLO.Group.MainAssist.CleanName() or "")
+end
+
+--- Retrieves the ID of the main tank (group or raid depending on settings).
+--- @return number The ID of the main tank, or 0 if none.
+function Core.GetMainTankID()
+    if Config:GetSetting('TreatRaidAsGroup') and mq.TLO.Raid.Members() > 0 then
+        local rmt = mq.TLO.Raid.MainTank(1)
+        return (rmt and rmt.ID() or 0)
+    end
+    return (mq.TLO.Group.MainTank.ID() or 0)
 end
 
 --- Checks if the specified expansion is available.

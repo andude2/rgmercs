@@ -29,8 +29,12 @@ end
 function Comms.PrintGroupMessage(msg, ...)
     local output = msg
     if (... ~= nil) then output = string.format(output, ...) end
-
-    Core.DoCmd("/dgt group_%s_%s %s", mq.TLO.EverQuest.Server():gsub(" ", ""), mq.TLO.Group.Leader() or "None", output)
+    if mq.TLO.Plugin('MQ2DanNet')() then
+        Core.DoCmd("/dgt group_%s_%s %s", mq.TLO.EverQuest.Server():gsub(" ", ""), mq.TLO.Group.Leader() or "None", output)
+    else
+        -- Fallback: no DanNet, just echo locally for visibility.
+        Logger.log_debug("[Announce->GroupMessage] %s", output)
+    end
 end
 
 --- Displays a pop-up message with the given text.

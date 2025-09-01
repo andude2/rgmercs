@@ -405,7 +405,7 @@ end
 --- @return boolean Returns true if the name is safe, false otherwise.
 function Targeting.IsSafeName(spawnType, name)
     Logger.log_verbose("IsSafeName(%s)", name)
-    if mq.TLO.DanNet(name)() then
+    if mq.TLO.Plugin('MQ2DanNet')() and mq.TLO.DanNet(name)() then
         Logger.log_verbose("IsSafeName(%s): Dannet Safe", name)
         return true
     end

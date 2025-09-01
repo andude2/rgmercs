@@ -202,7 +202,7 @@ function Module:GiveTime(combat_state)
             end
         end
 
-        if Config:GetSetting('DoDanNetDrag') then
+        if Config:GetSetting('DoDanNetDrag') and mq.TLO.Plugin('MQ2DanNet')() then
             local dannetPeers = mq.TLO.DanNet.PeerCount()
             for i = 1, dannetPeers do
                 ---@diagnostic disable-next-line: redundant-parameter
