@@ -93,6 +93,32 @@ Module.LogicBlocks                      = {
         args = {},
     },
 
+    ['Server Type'] = {
+        cond = function(self, target, onLive, onEmu, onLaz)
+            Logger.log_super_verbose("\ayClickies: Checking Server Type is onLive(%s) onEmu(%s), onLaz(%s)", Strings.BoolToColorString(onLive),
+                Strings.BoolToColorString(onEmu), Strings.BoolToColorString(onLaz))
+
+            return (onLive and not Core.OnEMU()) or (onEmu and Core.OnEMU()) or (onLaz and Core.OnLaz())
+        end,
+        has_target = false,
+        tooltip = "Only use if you are on one of these server types.",
+        render_header_text = function(self, cond)
+            local serverTypes = ""
+            for k, v in pairs(cond.args) do
+                if v == true then
+                    serverTypes = serverTypes .. (serverTypes == "" and "" or ", ") .. self.LogicBlocks['Server Type'].args[k].name
+                end
+            end
+
+            return string.format("Server type is %s", serverTypes == "" and "None" or serverTypes)
+        end,
+        args = {
+            { name = "Live",            type = "boolean", default = true, },
+            { name = "Emu",             type = "boolean", default = true, },
+            { name = "Project Lazarus", type = "boolean", default = true, },
+        },
+    },
+
     ['Combat State'] = {
         cond = function(self, target, inCombat)
             Logger.log_super_verbose("\ayClickies: Combat State condition check, inCombat: %s Current State: %s", Strings.BoolToColorString(inCombat), self.CombatState)
@@ -150,13 +176,37 @@ Module.LogicBlocks                      = {
             return string.format("HP of %s is between %d%% and %d%%", cond.target or "Self", cond.args[1] or 0, cond.args[2] or 100)
         end,
         args = {
-            { name = "Above HP", type = "number", default = 0,   min = 0, max = 100, },
-            { name = "Below HP", type = "number", default = 100, min = 0, max = 100, },
+            { name = "Above HP %", type = "number", default = 0,   min = 0, max = 100, },
+            { name = "Below HP %", type = "number", default = 100, min = 0, max = 100, },
+        },
+    },
+
+    ['Mana Threshold'] = {
+        cond = function(self, target, aboveMana, belowMana)
+            Logger.log_super_verbose("\ayClickies: Mana Theshold condition check on %s, aboveHP: %d belowHp: %d", target.CleanName() or "None", aboveMana, belowMana)
+
+            local pctMana = target.PctMana() or 0
+            if aboveMana and pctMana < aboveMana then
+                return false
+            end
+            if belowMana and pctMana > belowMana then
+                return false
+            end
+            return true
+        end,
+        has_target = false,
+        tooltip = "Only use if your Mana is above/below this percent.",
+        render_header_text = function(self, cond)
+            return string.format("Your Mana is between %d%% and %d%%", cond.args[1] or 0, cond.args[2] or 100)
+        end,
+        args = {
+            { name = "Above Mana %", type = "number", default = 0,   min = 0, max = 100, },
+            { name = "Below Mana %", type = "number", default = 100, min = 0, max = 100, },
         },
     },
 }
 
-Module.LogicBlockTypes                  = { 'None', 'Combat State', 'HP Theshold', }
+Module.LogicBlockTypes                  = { 'None', 'Server Type', 'Combat State', 'HP Theshold', 'Mana Threshold', }
 for k, v in pairs(Module.LogicBlockTypes) do
     Module.LogicBlocks[v].id = k
 end
@@ -474,10 +524,16 @@ function Module:RenderClickiesWithConditions(type, clickies)
                             if self:GetLogicBlockByType(cond.type) then
                                 local headerPos = ImGui.GetCursorPosVec()
                                 if ImGui.TreeNode(self:GetLogicBlockByType(cond.type).render_header_text(self, cond) .. "###clickie_cond_tree_" .. clickyIdx .. "_" .. condIdx) then
+                                    Ui.Tooltip(self:GetLogicBlockByType(cond.type).tooltip or "No Tooltip Available.")
+                                    ImGui.NewLine()
+
                                     self:RenderConditionTypesCombo(cond, condIdx)
                                     self:RenderConditionTargetCombo(cond, condIdx)
                                     self:RenderConditionArgs(cond, condIdx, clickyIdx)
                                     ImGui.TreePop()
+                                else
+                                    Ui.Tooltip(self:GetLogicBlockByType(cond.type).tooltip or "No Tooltip Available.")
+                                    ImGui.NewLine()
                                 end
 
                                 self:RenderControls(clickyIdx, condIdx, clicky.conditions, headerPos)
