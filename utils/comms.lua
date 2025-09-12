@@ -4,7 +4,7 @@ local Logger     = require("utils.logger")
 
 local Comms      = { _version = '1.0', _name = "Comms", _author = 'Derple', }
 Comms.__index    = Comms
-Comms.Actors     = require('actors')
+Comms.Actors     = require('rgmercs.lib.actors')
 Comms.ScriptName = "RGMercs"
 
 --- Broadcasts an update event to the specified module.

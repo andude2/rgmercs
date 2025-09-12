@@ -11,16 +11,12 @@ local Core      = require("utils.core")
 local Logger    = require("utils.logger")
 
 return {
-    _version            = "1.0 - EZ Server",
+    _version            = "2.0 - EZ Server (Alpha)",
     _author             = "Derple, Algar",
     ['Modes']           = {
         'DPS',
         'PBAE',
     },
-    ['OnModeChange']    = function(self, mode)
-        -- if this is enabled weaves will break.
-        Config:GetSettings().WaitOnGlobalCooldown = false
-    end,
     ['ItemSets']        = {
         ['Epic'] = {
             "Staff of Phenomenal Power",
@@ -28,7 +24,6 @@ return {
         },
 
         ['OoW_Chest'] = {
-            "Silk Robes of Velketor the Sorcer",
             "Academic's Robe of the Arcanists",
             "Spelldeviser's Cloth Robe",
         },
@@ -48,8 +43,7 @@ return {
             "Wildmagic Burst",
         },
         ['FireNuke'] = {
-            "Yoruk's Blaze of Destruction",
-            "Yamakagi's Fiery Passion Inferno IV",
+            "Corona Flare",
             "Spark of Fire",
             "Draught of Ro",
             "Draught of Fire",
@@ -60,6 +54,8 @@ return {
             "Shock of Fire",
         },
         ['BigFireNuke'] = { -- Level 51-70, Long Cast, Heavy Damage
+            "Brilliant Ember",
+            "Ether Flame",
             -- "Ancient: Core Fire", --Ether Flame beats this soundly at the same level
             -- "Corona Flare",       --Ether Flame beats this soundly at the same level
             "Ancient: Strike of Chaos",
@@ -123,15 +119,19 @@ return {
             "Minor Shielding",
         },
         ['FamiliarBuff'] = {
+            "Curious Creation IV",
+            "Curious Creation III",
+            "Curious Creation II",
+            "Curious Creation",
             "Greater Familiar",
             "Familiar",
             "Lesser Familiar",
             "Minor Familiar",
         },
-        --[[['SelfRune1'] = {
+        ['SelfRune1'] = {
             "Ether Skin",
             "Force Shield",
-        },]]
+        },
         ['StripBuffSpell'] = {
             "Annul Magic",
             "Nullify Magic",
@@ -157,6 +157,12 @@ return {
             "Lesser Evacuate",
         },
         ['HarvestSpell'] = {
+            "Harvest VII",
+            "Harvest VI",
+            "Harvest V",
+            "Harvest IV",
+            "Harvest III",
+            "Harvest II",
             "Harvest",
         },
         ['JoltSpell'] = {
@@ -213,6 +219,9 @@ return {
         --     "Tears of Arlyxir",
         -- },
         ['PBTimer4'] = {
+            "Static Burst III",
+            "Static Burst II",
+            "Static Burst",
             "Circle of Thunder", -- Level 70, Magic
             "Circle of Fire",    -- Level 67, Fire
             "Winds of Gelid",    -- Level 60, Ice
@@ -228,13 +237,25 @@ return {
         ['MagicJyll'] = {
             "Jyll's Static Pulse", -- Level 53
         },
-        ['ManaWeave'] = {
-            "Mana Weave",
-        },
         ['SwarmPet'] = {
             -- "Solist's Frozen Sword", -- Bugged, does not attack on Laz/Emu
             "Flaming Sword of Xuzl", --homework
         },
+        ['GlacialGift'] = {
+            "Dimur's Glacial Gift",
+            "Hatebornes Glacial Gift III",
+            "Hatebornes Glacial Gift II",
+            "Hatebornes Glacial Gift",
+        },
+        ['HeavenlyFire'] = {
+            "Kaldar's Heavenly Fire III",
+            "Kaldars Heavenly Fire II",
+            "Kaldars Heavenly Fire",
+        },
+        ['Blaze'] = {
+            "Yoruk's Blaze of Destruction",
+        },
+
     },
     ['HelperFunctions'] = {
         --function to make sure we don't have non-hostiles in range before we use AE damage or non-taunt AE hate abilities
@@ -260,6 +281,10 @@ return {
         RainCheck = function(target) -- I made a funny
             if not (Config:GetSetting('DoRain') and Config:GetSetting('DoAEDamage')) then return false end
             return Targeting.GetTargetDistance() >= Config:GetSetting('RainDistance') and Targeting.MobNotLowHP(target)
+        end,
+        HaveStaticBurst = function()
+            local pbSpell = Core.GetResolvedActionMapItem("PBTimer4")
+            return pbSpell and string.find(pbSpell() or "", "Static Burst") ~= nil
         end,
     },
     ['RotationOrder']   = {
@@ -312,10 +337,10 @@ return {
             end,
         },
         {
-            name = 'DPS(Level70)',
+            name = 'DPS(Endgame)',
             state = 1,
             steps = 1,
-            load_cond = function() return mq.TLO.Me.Level() < 101 and mq.TLO.Me.Level() > 69 end,
+            load_cond = function() return mq.TLO.Me.Level() < 101 and mq.TLO.Me.Level() > 70 end,
             doFullRotation = true,
             targetId = function(self) return Targeting.CheckForAutoTargetID() end,
             cond = function(self, combat_state)
@@ -375,7 +400,7 @@ return {
             name = 'Force of Will',
             state = 1,
             steps = 1,
-            load_cond = function() return Casting.CanUseAA("Force of Will") end,
+            load_cond = function() return Casting.CanUseAA("Force of Will") and Config:GetSetting('DoForce') end,
             targetId = function(self) return Targeting.CheckForAutoTargetID() end,
             cond = function(self, combat_state)
                 return combat_state == "Combat"
@@ -391,16 +416,6 @@ return {
                 return combat_state == "Combat"
             end,
         },
-        {
-            name = 'ArcanumWeave',
-            state = 1,
-            steps = 1,
-            load_cond = function() return Config:GetSetting('DoArcanumWeave') and Casting.CanUseAA("Acute Focus of Arcanum") end,
-            targetId = function(self) return Targeting.CheckForAutoTargetID() end,
-            cond = function(self, combat_state)
-                return combat_state == "Combat" and not mq.TLO.Me.Buff("Focus of Arcanum")()
-            end,
-        },
     },
     ['Rotations']       = {
         ['Burn'] = {
@@ -412,32 +427,8 @@ return {
                 end,
             },
             {
-                name = "OoW_Chest",
-                type = "Item",
-            },
-            {
-                name = "Focus of Arcanum",
-                type = "AA",
-            },
-            {
-                name = "Fundament: Second Spire of Arcanum",
-                type = "AA",
-            },
-            {
                 name = "Fury of Ro",
                 type = "AA",
-            },
-            {
-                name = "Forsaken Sorceror's Shoes",
-                type = "Item",
-                load_cond = function(self) return mq.TLO.FindItem("=Forsaken Sorceror's Shoes")() end,
-            },
-            {
-                name = "Improved Twincast",
-                type = "AA",
-                cond = function(self)
-                    return not mq.TLO.Me.Buff("Twincast")()
-                end,
             },
             { --Crit Chance AA, will use the first(best) one found
                 name_func = function(self)
@@ -451,16 +442,6 @@ return {
             {
                 name = "Silent Casting",
                 type = "AA",
-            },
-            {
-                name_func = function(self)
-                    return Casting.GetFirstAA({ "Volatile Mana Blaze", "Mana Blaze", "Mana Blast", "Mana Burn", })
-                end,
-                type = "AA",
-                load_cond = function(self) return Config:GetSetting('DoManaBurn') end,
-                cond = function(self, aaName, target)
-                    return Targeting.IsNamed(target) and mq.TLO.Me.PctAggro() < 70 and Casting.OkayToNuke(true) and not mq.TLO.Target.FindBuff("detspa 350")()
-                end,
             },
             {
                 name = "Call of Xuzl",
@@ -484,23 +465,8 @@ return {
                 end,
             },
             {
-                name = "A Hole in Space",
-                type = "AA",
-                cond = function(self)
-                    return Targeting.IHaveAggro(100)
-                end,
-            },
-            {
-                name = "Concussive Intuition",
-                type = "AA",
-                cond = function(self)
-                    return mq.TLO.Me.PctAggro() > Config:GetSetting('JoltAggro')
-                end,
-            },
-            {
                 name = "JoltSpell",
                 type = "Spell",
-                load_cond = function(self) return not Casting.CanUseAA("Concussive Intuition") end,
                 cond = function(self)
                     return mq.TLO.Me.PctAggro() > Config:GetSetting('JoltAggro')
                 end,
@@ -534,14 +500,6 @@ return {
         ['CombatBuff'] =
         {
             {
-                name = "Forsaken Fungus Covered Scale Tunic",
-                type = "Item",
-                load_cond = function(self) return mq.TLO.FindItem("=Forsaken Fungus Covered Scale Tunic")() end,
-                cond = function(self, itemName, target)
-                    return mq.TLO.Me.PctMana() < Config:GetSetting('CombatHarvestManaPct') or mq.TLO.Me.PctHPs() < 40
-                end,
-            },
-            {
                 name = "Harvest of Druzzil",
                 type = "AA",
                 load_cond = function(self) return Casting.CanUseAA("Harvest of Druzzil") end,
@@ -553,7 +511,6 @@ return {
             {
                 name = "HarvestSpell",
                 type = "Spell",
-                load_cond = function(self) return not Casting.CanUseAA("Harvest of Druzzil") end,
                 allowDead = true,
                 cond = function(self)
                     return mq.TLO.Me.PctMana() < Config:GetSetting('CombatHarvestManaPct')
@@ -566,28 +523,21 @@ return {
                 type = "AA",
             },
         },
-        ['DPS(Level70)'] = {
-            {
-                name = "ManaWeave",
-                type = "Spell",
-                cond = function(self, spell, target)
-                    return not Casting.IHaveBuff("Weave of Power")
-                end,
-            },
-            {
-                name = "ChaosNuke",
-                type = "Spell",
-            },
-            {
-                name = "WildNuke",
-                type = "Spell",
-            },
+        ['DPS(Endgame)'] = {
             {
                 name = "Nocturnia's Wand of Death",
                 type = "Item",
             },
             {
-                name = "FireEtherealNuke",
+                name = "Blaze",
+                type = "Spell",
+            },
+            {
+                name = "GlacialGift",
+                type = "Spell",
+            },
+            {
+                name = "HeavenlyFire",
                 type = "Spell",
             },
         },
@@ -667,6 +617,7 @@ return {
             {
                 name = "FireJyll",
                 type = "Spell",
+                load_cond = function(self) return not self.ClassConfig.HelperFunctions.HaveStaticBurst() end,
                 allowDead = true,
                 cond = function(self, spell, target)
                     return Targeting.AggroCheckOkay() and Targeting.InSpellRange(spell, target)
@@ -675,6 +626,7 @@ return {
             {
                 name = "IceJyll",
                 type = "Spell",
+                load_cond = function(self) return not self.ClassConfig.HelperFunctions.HaveStaticBurst() end,
                 allowDead = true,
                 cond = function(self, spell, target)
                     return Targeting.AggroCheckOkay() and Targeting.InSpellRange(spell, target)
@@ -683,6 +635,7 @@ return {
             {
                 name = "MagicJyll",
                 type = "Spell",
+                load_cond = function(self) return not self.ClassConfig.HelperFunctions.HaveStaticBurst() end,
                 allowDead = true,
                 cond = function(self, spell, target)
                     return Targeting.AggroCheckOkay() and Targeting.InSpellRange(spell, target)
@@ -698,28 +651,17 @@ return {
                     return (spell.Level() or 0) > (mq.TLO.Me.AltAbility("Etherealist's Unity").Spell.Trigger(1).Level() or 0) and Casting.SelfBuffCheck(spell)
                 end,
             },
-            {
-                name = "SelfRune1",
-                type = "Spell",
-                active_cond = function(self, spell) return Casting.IHaveBuff(spell) end,
-                cond = function(self, spell)
-                    return Casting.SelfBuffCheck(spell)
-                end,
-            },
-            { --Familiar AA, will use the first(best) one found
-                name_func = function(self)
-                    return Casting.GetFirstAA({ "Kerafyrm's Prismatic Familiar", "Ro's Flaming Familiar", "Improved Familiar", })
-                end,
-                type = "AA",
-                active_cond = function(self, aaName) return Casting.IHaveBuff(aaName) end,
-                cond = function(self, aaName)
-                    return Casting.SelfBuffAACheck(aaName)
-                end,
-            },
+            -- {
+            --     name = "SelfRune1",
+            --     type = "Spell",
+            --     active_cond = function(self, spell) return Casting.IHaveBuff(spell) end,
+            --     cond = function(self, spell)
+            --         return Casting.SelfBuffCheck(spell)
+            --     end,
+            -- },
             {
                 name = "FamiliarBuff",
                 type = "Spell",
-                load_cond = function(self) return not Casting.CanUseAA("Improved Familiar") end,
                 active_cond = function(self, spell) return Casting.IHaveBuff(spell) end,
                 cond = function(self, spell)
                     return Casting.SelfBuffCheck(spell)
@@ -736,32 +678,8 @@ return {
             {
                 name = "HarvestSpell",
                 type = "Spell",
-                load_cond = function(self) return not Casting.CanUseAA("Harvest of Druzzil") end,
                 cond = function(self, spell)
                     return Casting.CastReady(spell) and mq.TLO.Me.PctMana() < Config:GetSetting('HarvestManaPct')
-                end,
-            },
-        },
-        ['ArcanumWeave'] = {
-            {
-                name = "Empowered Focus of Arcanum",
-                type = "AA",
-                cond = function(self, aaName)
-                    return Casting.SelfBuffAACheck(aaName)
-                end,
-            },
-            {
-                name = "Enlightened Focus of Arcanum",
-                type = "AA",
-                cond = function(self, aaName)
-                    return Casting.SelfBuffAACheck(aaName)
-                end,
-            },
-            {
-                name = "Acute Focus of Arcanum",
-                type = "AA",
-                cond = function(self, aaName)
-                    return Casting.SelfBuffAACheck(aaName)
                 end,
             },
         },
@@ -770,7 +688,7 @@ return {
         {
             gem = 1,
             spells = {
-                { name = "ManaWeave", },
+                { name = "Blaze", },
                 { name = "FireNuke",  cond = function() return Config:GetSetting('ElementChoice') == 1 end, },
                 { name = "IceNuke",   cond = function() return Config:GetSetting('ElementChoice') == 2 end, },
                 { name = "MagicNuke", cond = function() return Config:GetSetting('ElementChoice') == 3 end, },
@@ -780,23 +698,23 @@ return {
         {
             gem = 2,
             spells = {
-                { name = "FireEtherealNuke", },
-                { name = "BigFireNuke",      cond = function() return Config:GetSetting('ElementChoice') == 1 end, },
-                { name = "BigIceNuke",       cond = function() return Config:GetSetting('ElementChoice') == 2 end, },
-                { name = "BigMagicNuke",     cond = function() return Config:GetSetting('ElementChoice') == 3 end, },
+                { name = "GlacialGift", },
+                { name = "BigFireNuke",  cond = function() return Config:GetSetting('ElementChoice') == 1 end, },
+                { name = "BigIceNuke",   cond = function() return Config:GetSetting('ElementChoice') == 2 end, },
+                { name = "BigMagicNuke", cond = function() return Config:GetSetting('ElementChoice') == 3 end, },
             },
         },
         {
             gem = 3,
             spells = {
-                { name = "WildNuke", },
+                { name = "HeavenlyFire", },
                 { name = "FireRain",     cond = function() return Config:GetSetting('DoRain') and Config:GetSetting('ElementChoice') == 1 end, },
                 { name = "IceRain",      cond = function() return Config:GetSetting('DoRain') and Config:GetSetting('ElementChoice') == 2 end, },
                 { name = "HarvestSpell", cond = function() return not Casting.CanUseAA("Harvest of Druzzil") end, },
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -804,12 +722,11 @@ return {
         {
             gem = 4,
             spells = {
-                { name = "ChaosNuke", },
                 { name = "HarvestSpell", cond = function() return not Casting.CanUseAA("Harvest of Druzzil") end, },
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -822,7 +739,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -835,7 +752,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -848,7 +765,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
 
@@ -863,7 +780,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -876,7 +793,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", }, },
         },
@@ -888,7 +805,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
 
@@ -902,7 +819,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -915,7 +832,7 @@ return {
                 { name = "SnareSpell",   cond = function() return Config:GetSetting('DoSnare') and not Casting.CanUseAA("Atol's Shackles") end, },
                 { name = "StunSpell",    cond = function() return Config:GetSetting('DoStun') end, },
                 { name = "JoltSpell",    cond = function() return not Casting.CanUseAA("Concussive Intuition") end, },
-                { name = "SelfRune1", },
+                { name = "FamiliarBuff", },
                 { name = "EvacSpell",    cond = function() return not Casting.CanUseAA("Exodus") end, },
                 { name = "SelfHPBuff", },
             },
@@ -983,6 +900,14 @@ return {
             Max = 100,
             FAQ = "Why does minimum rain distance matter?",
             Answer = "Rain spells, if cast close enough, can damage the caster. The AE range of a Rain is 25'.",
+        },
+        ['DoForce']              = {
+            DisplayName = "Do Force of Will",
+            Category = "Damage",
+            Index = 3,
+            RequiresLoadoutChange = true,
+            Tooltip = "Cast the Force of Will AA.",
+            Default = false,
         },
 
         --Damage (AE)
@@ -1101,17 +1026,6 @@ return {
             Max = 99,
             FAQ = "How do I use Harvest Spells?",
             Answer = "Set the [HarvestManaPct] to the minimum mana % you want to be at before using a harvest spell or aa.",
-        },
-        ['DoArcanumWeave']       = {
-            DisplayName = "Weave Arcanums",
-            Category = "Utility",
-            Index = 9,
-            Tooltip = "Weave Empowered/Enlighted/Acute Focus of Arcanum into your standard combat routine (Focus of Arcanum is saved for burns).",
-            RequiresLoadoutChange = true, --this setting is used as a load condition
-            Default = true,
-            FAQ = "What is an Arcanum and why would I want to weave them?",
-            Answer =
-            "The Focus of Arcanum series of AA decreases your spell resist rates.\nIf you have purchased all four, you can likely easily weave them to keep 100% uptime on one.",
         },
     },
 }

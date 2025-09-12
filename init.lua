@@ -25,6 +25,7 @@ local Events      = require("utils.events")
 local Ui          = require("utils.ui")
 local Comms       = require("utils.comms")
 local Strings     = require("utils.strings")
+local PeerPub     = require("utils.peer_publisher")
 
 -- Initialize class-based moduldes
 local Modules     = require("utils.modules")
@@ -164,7 +165,10 @@ local function RGInit(...)
         "MQ2Rez",
         "MQ2AdvPath",
         "MQ2MoveUtils",
-        "MQ2Nav", })
+        "MQ2Nav",
+        -- Ensure cross-peer messaging for Actors/DanNet-powered features
+        "MQ2DanNet",
+    })
 
     unloadedPlugins = Core.UnCheckPlugins({ "MQ2Melee", "MQ2Twist", })
 
@@ -512,8 +516,13 @@ mq.bind("/rglua", Binds.MainHandler)
 
 RGInit(...)
 
+-- Initialize peer publisher so every RGMercs instance broadcasts HUD data
+PeerPub.init()
+
 while openGUI do
     Main()
+    -- Periodically publish peer status for HUD listeners
+    PeerPub.update()
     mq.doevents()
     mq.delay(10)
 end

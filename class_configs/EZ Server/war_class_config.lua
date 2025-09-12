@@ -19,6 +19,8 @@ local _ClassConfig = {
     },
     ['ItemSets']        = {
         ['Epic'] = {
+            "Warrior Class Epic 3.0",
+            "Dread's Power Sphere",
             "Kreljnok's Sword of Eternal Power",
             "Champion's Sword of Eternal Power",
         },
@@ -283,6 +285,16 @@ local _ClassConfig = {
                     return Core.IsTanking() and Casting.SelfBuffAACheck(aaName)
                 end,
             },
+            {
+                name = "Clear E3 Target",
+                type = "CustomFunc",
+                cond = function(self)
+                    return Targeting.GetXTHaterCount() == 0 and Config.Globals.AutoTargetID == 0 and Config:GetSetting('E3AssistId') > 0
+                end,
+                custom_func = function(self)
+                    Config:SetSetting("E3AssistId", 0)
+                end,
+            },
 
         },
         ['HateTools'] = {
@@ -516,6 +528,17 @@ local _ClassConfig = {
                 end,
             },
             {
+                name = "Set E3 Target",
+                type = "CustomFunc",
+                cond = function(self)
+                    return Config:GetSetting('E3AssistId') ~= Config.Globals.AutoTargetID
+                end,
+                custom_func = function(self)
+                    Core.DoCmd("/assistme /all")
+                    Config:SetSetting("E3AssistId", Config.Globals.AutoTargetID)
+                end,
+            },
+            {
                 name = "Battle Leap",
                 type = "AA",
                 cond = function(self, aaName, target)
@@ -609,7 +632,14 @@ local _ClassConfig = {
             FAQ = "What do the different Modes Do?",
             Answer = "Tank Mode is for when you are the main tank. DPS Mode is for when you are not the main tank and want to focus on damage.",
         },
-
+        ['E3AssistId']      = {
+            DisplayName = "E3 Assist Id",
+            Category = "Custom",
+            Tooltip = "The target to call assist for.",
+            Default = 0,
+            Min = 1,
+            Max = 99999,
+        },
         --Abilities
         ['DoBattleLeap']    = {
             DisplayName = "Do Battle Leap",
@@ -858,6 +888,7 @@ local _ClassConfig = {
             FAQ = "Why does my WAR switch to a Shield on puny gray named?",
             Answer = "The Shield on Named option doesn't check levels, so feel free to disable this setting (or Bandolier swapping entirely) if you are farming fodder.",
         },
+        
     },
 }
 
