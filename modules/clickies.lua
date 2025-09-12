@@ -106,7 +106,7 @@ Module.LogicBlocks                      = {
             local serverTypes = ""
             for k, v in pairs(cond.args) do
                 if v == true then
-                    serverTypes = serverTypes .. (serverTypes == "" and "" or ", ") .. self.LogicBlocks['Server Type'].args[k].name
+                    serverTypes = serverTypes .. (serverTypes == "" and "" or " or ") .. self.LogicBlocks['Server Type'].args[k].name
                 end
             end
 
@@ -176,8 +176,8 @@ Module.LogicBlocks                      = {
             return string.format("HP of %s is between %d%% and %d%%", cond.target or "Self", cond.args[1] or 0, cond.args[2] or 100)
         end,
         args = {
-            { name = "Above HP %", type = "number", default = 0,   min = 0, max = 100, },
-            { name = "Below HP %", type = "number", default = 100, min = 0, max = 100, },
+            { name = "> HP %", type = "number", default = 0,   min = 0, max = 100, },
+            { name = "< HP %", type = "number", default = 100, min = 0, max = 100, },
         },
     },
 
@@ -200,8 +200,8 @@ Module.LogicBlocks                      = {
             return string.format("Your Mana is between %d%% and %d%%", cond.args[1] or 0, cond.args[2] or 100)
         end,
         args = {
-            { name = "Above Mana %", type = "number", default = 0,   min = 0, max = 100, },
-            { name = "Below Mana %", type = "number", default = 100, min = 0, max = 100, },
+            { name = "> Mana %", type = "number", default = 0,   min = 0, max = 100, },
+            { name = "< Mana %", type = "number", default = 100, min = 0, max = 100, },
         },
     },
 }
