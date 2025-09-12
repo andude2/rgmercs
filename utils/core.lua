@@ -89,11 +89,16 @@ end
 --- This function iterates over the provided table of plugins and performs a check on each one.
 ---
 --- @param t table A table containing plugin information to be checked.
-function Core.CheckPlugins(t)
+function Core.CheckPlugins(t, reloadingUnloaded)
     for _, p in pairs(t) do
         if not mq.TLO.Plugin(p)() then
-            Core.DoCmd("/squelch /plugin %s noauto", p)
-            Logger.log_info("\aw %s \ar not detected! \aw This script requires it! Loading ...", p)
+            Core.DoCmd("/squelch /plugin %s %s", p, reloadingUnloaded and "" or "noauto")
+
+            if reloadingUnloaded then
+                Logger.log_info("\aw %s \ar is being reloaded as RGMercs is shutting down...", p)
+            else
+                Logger.log_info("\aw %s \ar not detected! \aw This script requires it! Loading ...", p)
+            end
         end
     end
 end
@@ -146,6 +151,18 @@ function Core.GetMainTankID()
     return (mq.TLO.Group.MainTank.ID() or 0)
 end
 
+--- Retrieves the ID of the selected number assist in the raid.
+--- @return number The ID of the chosen assist in the raid.
+function Core.GetRaidMainAssistID(assistNumber)
+    return (mq.TLO.Raid.MainAssist(assistNumber).ID() or 0)
+end
+
+--- Retrieves the name of the selected number assist in the raid.
+--- @return string The name of the chosesn assist in the raid.
+function Core.GetRaidMainAssistName(assistNumber)
+    return (mq.TLO.Raid.MainAssist(assistNumber).CleanName() or "")
+end
+
 --- Checks if the specified expansion is available.
 --- @param name string The name of the expansion to check.
 --- @return boolean True if the expansion is available, false otherwise.
@@ -170,29 +187,31 @@ end
 ---
 --- @return number The ID of the main assist.
 function Core.GetMainAssistId()
-    return mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist)).ID() or 0
+    return Config.Globals.MainAssist:len() > 0 and mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist)).ID() or 0
 end
 
 --- Retrieves the main assist spawn.
 --- @return MQSpawn The main assist spawn data.
 function Core.GetMainAssistSpawn()
-    return mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist))
+    return Config.Globals.MainAssist:len() > 0 and mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist)) or mq.TLO.Spawn("")
 end
 
 --- Retrieves the percentage of hit points (HP) of the main assist.
 ---
 --- @return number The percentage of HP of the main assist.
 function Core.GetMainAssistPctHPs()
+    if Config.Globals.MainAssist:len() == 0 then return 100 end
+
     local groupMember = mq.TLO.Group.Member(Config.Globals.MainAssist)
     if groupMember and groupMember() then
-        return groupMember.PctHPs() or 0
+        return groupMember.PctHPs() or 100
     end
 
     local ret = tonumber(DanNet.query(Config.Globals.MainAssist, "Me.PctHPs", 1000))
 
     if ret and type(ret) == 'number' then return ret end
 
-    return mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist)).PctHPs() or 0
+    return mq.TLO.Spawn(string.format("PC =%s", Config.Globals.MainAssist)).PctHPs() or 100
 end
 
 --- Checks if a given mode is active.
@@ -271,6 +290,14 @@ end
 
 function Core.ProcessCureChecks()
     Modules:ExecModule("Class", "ManageCureCoroutines")
+end
+
+function Core.SetPetHold()
+    Modules:ExecModule("Class", "SetPetHold")
+end
+
+function Core.GetChaseTarget()
+    return Modules:ExecModule("Movement", "GetChaseTarget")
 end
 
 return Core

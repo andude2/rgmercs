@@ -45,7 +45,7 @@ return {
         end,
         CureNow = function(self, type, targetId)
             local targetSpawn = mq.TLO.Spawn(targetId)
-            if not targetSpawn and targetSpawn then return false end
+            if not targetSpawn and targetSpawn then return false, false end
 
             if Config:GetSetting('DoCureAA') then
                 local cureAA = Casting.AAReady("Radiant Cure") and "Radiant Cure"
@@ -56,7 +56,7 @@ return {
 
                 if cureAA then
                     Logger.log_debug("CureNow: Using %s for %s on %s.", cureAA, type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-                    return Casting.UseAA(cureAA, targetId)
+                    return Casting.UseAA(cureAA, targetId), true
                 end
             end
 
@@ -64,13 +64,13 @@ return {
                 for effectType, cureSpell in pairs(self.TempSettings.CureSpells) do
                     if type:lower() == effectType:lower() then
                         Logger.log_debug("CureNow: Using %s for %s on %s.", cureSpell.RankName(), type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-                        return Casting.UseSpell(cureSpell.RankName(), targetId, true)
+                        return Casting.UseSpell(cureSpell.RankName(), targetId, true), true
                     end
                 end
             end
 
             Logger.log_debug("CureNow: No valid cure at this time for %s on %s.", type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-            return false
+            return false, false
         end,
     },
     ['ItemSets']          = {
@@ -857,7 +857,7 @@ return {
                 name = "AEStun",
                 type = "Spell",
                 cond = function(self, spell, target)
-                    return Core.IsTanking() or Config:GetSetting('AEStunUse') == 3 or Core.GetMainAssistPctHPs() > Config:GetSetting('EmergencyStart')
+                    return Core.IsTanking() or Config:GetSetting('AEStunUse') == 3 or Core.GetMainAssistPctHPs() < Config:GetSetting('EmergencyStart')
                 end,
 
             },
@@ -866,7 +866,7 @@ return {
                 type = "Spell",
                 allowDead = true,
                 cond = function(self, spell, target)
-                    return Core.IsTanking() or Config:GetSetting('AEStunUse') == 3 or Core.GetMainAssistPctHPs() > Config:GetSetting('EmergencyStart')
+                    return Core.IsTanking() or Config:GetSetting('AEStunUse') == 3 or Core.GetMainAssistPctHPs() < Config:GetSetting('EmergencyStart')
                 end,
             },
             {

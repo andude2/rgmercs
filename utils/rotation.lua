@@ -141,7 +141,7 @@ function Rotation.ExecEntry(caller, entry, targetId, resolvedActionMap, bAllowMe
 
         if Casting.SpellReady(spell, bAllowMem) then
             Rotation.RunPreActivate(caller, resolvedActionMap, entry)
-            ret = Casting.UseSpell(spell.RankName(), targetId, bAllowMem, entry.allowDead, entry.overrideWaitForGlobalCooldown, entry.retries)
+            ret = Casting.UseSpell(spell.RankName(), targetId, bAllowMem, entry.allowDead, entry.retries)
         end
         Logger.log_verbose("(Spell) Trying to use %s - %s :: %s", entry.name, spell.RankName(), ret and "\agSuccess" or "\arFailed!")
     end
@@ -241,6 +241,11 @@ function Rotation.TestConditionForEntry(caller, resolvedActionMap, entry, target
             "check failed - Entry(\at%s\ay), condArg(\at%s\ay), condTarg(\at%s\ay)", entry.name or "NoName",
             (type(condArg) == 'userdata' and condArg() or condArg) or "None", condTarg.CleanName() or "None")
         pass = Core.SafeCallFunc("Condition " .. logInfo, entry.cond, caller, condArg, condTarg)
+
+        --temp suppress of error messaging while we evaluate.
+        -- if type(pass) ~= "boolean" then
+        --     Logger.log_error("Entry(%s): %s is not a boolean value!", entry.name, pass)
+        -- end
 
         if entry.active_cond then
             active = Core.SafeCallFunc("Active " .. logInfo, entry.active_cond, caller, condArg)

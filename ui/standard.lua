@@ -8,6 +8,7 @@ local Core         = require('utils.core')
 local Targeting    = require('utils.targeting')
 local Casting      = require('utils.casting')
 local Modules      = require('utils.modules')
+local Movement     = require('utils.movement')
 local ConsoleUI    = require('ui.console')
 local GitCommit    = require('extras.version')
 
@@ -28,11 +29,8 @@ function StandardUI:renderModulesTabs()
 end
 
 function StandardUI:RenderTarget()
-    if (mq.TLO.Raid.Members() > 0 and mq.TLO.Raid.MainAssist(1)() == nil) or (mq.TLO.Raid.Members() == 0 and mq.TLO.Group() and not mq.TLO.Group.MainAssist()) then
-        if ((Core.OnEMU() and (mq.TLO.Raid.Members() >= 18 or mq.TLO.Raid.Members() == 0)) or not Core.OnEMU()) then
-            ImGui.TextColored(IM_COL32(200, math.floor(os.clock() % 2) == 1 and 52 or 200, 52, 255),
-                string.format("Warning: NO GROUP MA - PLEASE SET ONE!"))
-        end
+    if Config.TempSettings.AssistWarning then
+        ImGui.TextColored(IM_COL32(200, math.floor(os.clock() % 2) == 1 and 52 or 200, 52, 255), Config.TempSettings.AssistWarning)
     end
 
     local assistSpawn = Targeting.GetAutoTarget()
@@ -95,9 +93,8 @@ function StandardUI:RenderWindowControls()
     local windowControlPos = ImVec2(ImGui.GetWindowWidth() - (smallButtonSize * 2), smallButtonSize)
     ImGui.SetCursorPos(windowControlPos)
 
-    if ImGui.SmallButton((Config.settings.MainWindowLocked or false) and Icons.FA_LOCK or Icons.FA_UNLOCK) then
-        Config.settings.MainWindowLocked = not Config.settings.MainWindowLocked
-        Config:SaveSettings()
+    if ImGui.SmallButton((Config:GetSetting('MainWindowLocked') or false) and Icons.FA_LOCK or Icons.FA_UNLOCK) then
+        Config:SetSetting('MainWindowLocked', not Config:GetSetting('MainWindowLocked'))
     end
 
     ImGui.SameLine()
@@ -115,7 +112,7 @@ function StandardUI:RenderMainWindow(imgui_style, curState, openGUI)
     if not Config.Globals.Minimized then
         local flags = ImGuiWindowFlags.None
 
-        if Config.settings.MainWindowLocked then
+        if Config:GetSetting('MainWindowLocked') then
             flags = bit32.bor(flags, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize)
         end
 
@@ -163,32 +160,19 @@ function StandardUI:RenderMainWindow(imgui_style, curState, openGUI)
                 if ImGui.BeginTabItem("RGMercsMain") then
                     ImGui.Text("Current State: " .. curState)
                     ImGui.Text("Hater Count: " .. tostring(Targeting.GetXTHaterCount()))
-
-                    -- .. tostring(Config.Globals.AutoTargetID))
-                    ImGui.Text("MA: %-25s", (Core.GetMainAssistSpawn().CleanName() or "None"))
-                    if mq.TLO.Target.ID() > 0 and Targeting.TargetIsType("pc") and Config.Globals.MainAssist ~= mq.TLO.Target.ID() then
-                        ImGui.SameLine()
-                        if ImGui.SmallButton(string.format("Set MA to %s", Targeting.GetTargetCleanName())) then
-                            Config.Globals.MainAssist = mq.TLO.Target.CleanName()
-                        end
+                    if Config.TempSettings.AssistWarning and Core.IAmMA() then
+                        ImGui.Text("MA: %s (Fallback Mode)", (Core.GetMainAssistSpawn().CleanName() or "None"))
+                    else
+                        ImGui.Text("MA: %s", (Core.GetMainAssistSpawn().CleanName() or "None"))
                     end
-                    ImGui.Text("Stuck To: " ..
-                        (mq.TLO.Stick.Active() and (mq.TLO.Stick.StickTargetName() or "None") or "None"))
-                    if ImGui.CollapsingHeader("Outside Assist List") then
-                        ImGui.Indent()
-                        if Config:GetSetting('AssistOutside') then
-                            ImGui.PushStyleColor(ImGuiCol.Button, 0.02, 0.5, 0.0, .75)
-                        else
-                            ImGui.PushStyleColor(ImGuiCol.Button, 0.5, 0.02, 0.02, .75)
-                        end
-                        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, ImVec2(20, 3))
+                    ImGui.Text(string.format("Stuck To: %s [%s] <%s ago>",
+                        (mq.TLO.Stick.Active() and (mq.TLO.Stick.StickTargetName() or "None") or "None"),
+                        (mq.TLO.Stick.Active() and Movement:GetLastStickCmd() or "N/A"),
+                        Movement:GetTimeSinceLastStick() or "0"))
 
-                        if ImGui.SmallButton(Config:GetSetting('AssistOutside') and "Outside Assist: Enabled" or "Outside Assist: Disabled") then
-                            Config:SetSetting('AssistOutside', not Config:GetSetting('AssistOutside'))
-                        end
-                        ImGui.PopStyleVar()
-                        ImGui.PopStyleColor()
-                        Ui.RenderOAList()
+                    if ImGui.CollapsingHeader("Assist List") then
+                        ImGui.Indent()
+                        Ui.RenderAssistList()
                         ImGui.Unindent()
                     end
 
@@ -206,28 +190,20 @@ function StandardUI:RenderMainWindow(imgui_style, curState, openGUI)
                         ImGui.Indent()
 
                         if ImGui.CollapsingHeader(string.format("%s: Config Options", "Main"), bit32.bor(ImGuiTreeNodeFlags.DefaultOpen, ImGuiTreeNodeFlags.Leaf)) then
-                            local settingsRef = Config:GetSettings()
-                            settingsRef, pressed, _ = Ui.RenderSettings(settingsRef, Config.DefaultConfig,
-                                Config.DefaultCategories, false, true)
-                            if pressed then
-                                Config:SaveSettings()
-                            end
+                            _, _ = Ui.RenderModuleSettings("Core", Config.DefaultConfig, Config.SettingCategories, false, true)
                         end
                         if Config:GetSetting('ShowAllOptionsMain') then
                             if Config.Globals.SubmodulesLoaded then
-                                local submoduleSettings = Modules:ExecAll("GetSettings")
-                                local submoduleDefaults = Modules:ExecAll("GetDefaultSettings")
-                                local submoduleCategories = Modules:ExecAll("GetSettingCategories")
+                                local submoduleSettings = Config:GetAllModuleSettings()
+                                local submoduleDefaults = Config:GetAllModuleDefaultSettings()
+                                local submoduleCategories = Config:GetAllModuleSettingCategories()
+
                                 for n, s in pairs(submoduleSettings) do
-                                    if n ~= "Debug" and Modules:ExecModule(n, "ShouldRender") then
+                                    if n ~= "Debug" and n ~= "Core" and Modules:ExecModule(n, "ShouldRender") then
                                         ImGui.PushID(n .. "_config_hdr")
                                         if s and submoduleDefaults[n] and submoduleCategories[n] then
                                             if ImGui.CollapsingHeader(string.format("%s: Config Options", n), bit32.bor(ImGuiTreeNodeFlags.DefaultOpen, ImGuiTreeNodeFlags.Leaf)) then
-                                                s, pressed, _ = Ui.RenderSettings(s, submoduleDefaults[n],
-                                                    submoduleCategories[n], true)
-                                                if pressed then
-                                                    Modules:ExecModule(n, "SaveSettings", true)
-                                                end
+                                                _, _ = Ui.RenderModuleSettings(n, submoduleDefaults[n], submoduleCategories[n], true)
                                             end
                                         end
                                         ImGui.PopID()

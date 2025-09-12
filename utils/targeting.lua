@@ -4,6 +4,7 @@ local Core                  = require('utils.core')
 local Modules               = require("utils.modules")
 local Logger                = require("utils.logger")
 local Strings               = require("utils.strings")
+local Movement              = require("utils.movement")
 local Set                   = require('mq.set')
 
 local Targeting             = { _version = '1.0', _name = "Targeting", _author = 'Derple', }
@@ -54,7 +55,7 @@ function Targeting.ClearTarget()
     if Config:GetSetting('DoAutoTarget') then
         Config.Globals.AutoTargetID = 0
         if Config.Globals.ForceTargetID > 0 and not Targeting.IsSpawnXTHater(Config.Globals.ForceTargetID) then Config.Globals.ForceTargetID = 0 end
-        if mq.TLO.Stick.Status():lower() == "on" then Core.DoCmd("/stick off") end
+        if mq.TLO.Stick.Status():lower() == "on" then Movement:DoStickCmd("off") end
         Core.DoCmd("/target clear")
         if mq.TLO.Me.XTarget(1).TargetType() ~= "Auto Hater" then Core.DoCmd("/xtarget set 1 autohater") end
     end
@@ -329,6 +330,7 @@ end
 --- @param slot number The slot number where the XT should be added.
 --- @param name string The name of the XT to be added.
 function Targeting.AddXTByName(slot, name)
+    if not name then return end
     local spawnToAdd = mq.TLO.Spawn("=" .. name)
     if spawnToAdd and spawnToAdd() and mq.TLO.Me.XTarget(slot).ID() ~= spawnToAdd.ID() then
         Core.DoCmd("/xtarget set %d \"%s\"", slot, name)
@@ -410,7 +412,7 @@ function Targeting.IsSafeName(spawnType, name)
         return true
     end
 
-    for _, n in ipairs(Config:GetSetting('OutsideAssistList')) do
+    for _, n in ipairs(Config:GetSetting('AssistList')) do
         if name == n then
             Logger.log_verbose("IsSafeName(%s): OA Safe", name)
             return true
@@ -445,7 +447,7 @@ end
 --- Checks if the target is in the same group.
 function Targeting.GroupedWithTarget(target)
     local targetName = target.CleanName() or "None"
-    return mq.TLO.Group.Member(targetName)()
+    return mq.TLO.Group.Member(targetName)() and true or false
 end
 
 function Targeting.SetForceBurn(targetId)

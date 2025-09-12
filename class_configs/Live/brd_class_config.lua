@@ -72,16 +72,16 @@ local _ClassConfig = {
     ['Cures']           = {
         CureNow = function(self, type, targetId)
             local targetSpawn = mq.TLO.Spawn(targetId)
-            if not targetSpawn and targetSpawn() then return false end
+            if not targetSpawn and targetSpawn() then return false, false end
 
             local cureSong = Core.GetResolvedActionMapItem('CureSong')
             local downtime = mq.TLO.Me.CombatState():lower() ~= "combat"
             if type:lower() == ("disease" or "poison") and Casting.SongReady(cureSong, downtime) then
                 Logger.log_debug("CureNow: Using %s for %s on %s.", cureSong.RankName(), type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-                return Casting.UseSong(cureSong.RankName.Name(), targetId, downtime)
+                return Casting.UseSong(cureSong.RankName.Name(), targetId, downtime), true
             end
             Logger.log_debug("CureNow: No valid cure at this time for %s on %s.", type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-            return false
+            return false, false
         end,
     },
     ['ItemSets']        = {
@@ -1272,7 +1272,7 @@ local _ClassConfig = {
             {
                 name = "BardDPSAura",
                 type = "Song",
-                load_cond = function(self) return Core.GetResolvedActionMapItem('BardDSPAura') and Config:GetSetting('UseAura') == 1 end,
+                load_cond = function(self) return Core.GetResolvedActionMapItem('BardDPSAura') and Config:GetSetting('UseAura') == 1 end,
                 pre_activate = function(self, songSpell) --remove the old aura if we leveled up (or the other aura if we just changed options), otherwise we will be spammed because of no focus.
                     ---@diagnostic disable-next-line: undefined-field
                     if not Casting.AuraActiveByName(songSpell.BaseName()) then mq.TLO.Me.Aura(1).Remove() end

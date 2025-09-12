@@ -48,7 +48,7 @@ local _ClassConfig = {
                 end
             end
             local targetSpawn = mq.TLO.Spawn(targetId)
-            if not targetSpawn and targetSpawn then return false end
+            if not targetSpawn and targetSpawn then return false, false end
 
             if Config:GetSetting('DoCureAA') then
                 local cureAA = Casting.AAReady("Radiant Cure") and "Radiant Cure"
@@ -60,7 +60,7 @@ local _ClassConfig = {
 
                 if cureAA then
                     Logger.log_debug("CureNow: Using %s for %s on %s.", cureAA, type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-                    return Casting.UseAA(cureAA, targetId)
+                    return Casting.UseAA(cureAA, targetId), true
                 end
             end
 
@@ -70,16 +70,16 @@ local _ClassConfig = {
                         if cureSpell.TargetType():lower() == "group v1" and not Targeting.GroupedWithTarget(targetSpawn) then
                             Logger.log_debug("CureNow: We cannot use %s on %s, because it is a group-only spell and they are not in our group!", cureSpell.RankName(),
                                 targetSpawn.CleanName() or "Unknown")
-                            return false
+                        else
+                            Logger.log_debug("CureNow: Using %s for %s on %s.", cureSpell.RankName(), type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
+                            return Casting.UseSpell(cureSpell.RankName(), targetId, true), true
                         end
-                        Logger.log_debug("CureNow: Using %s for %s on %s.", cureSpell.RankName(), type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-                        return Casting.UseSpell(cureSpell.RankName(), targetId, true)
                     end
                 end
             end
 
             Logger.log_debug("CureNow: No valid cure at this time for %s on %s.", type:lower() or "unknown", targetSpawn.CleanName() or "Unknown")
-            return false
+            return false, false
         end,
     },
     ['ItemSets']          = {
@@ -1220,7 +1220,7 @@ local _ClassConfig = {
                 end,
                 custom_func = function(self)
                     local twinHeal = Core.GetResolvedActionMapItem("TwinHealNuke")
-                    Casting.UseSpell(twinHeal.RankName(), Core.GetMainAssistId(), false, false, false, 0)
+                    Casting.UseSpell(twinHeal.RankName(), Core.GetMainAssistId(), false, false, 0)
                 end,
             },
             { -- Calling "GetFirstMapItem" in a function so we don't need an entry for each of the below items... it simply chooses the "best"
