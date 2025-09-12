@@ -161,11 +161,11 @@ for k, v in pairs(Module.LogicBlockTypes) do
     Module.LogicBlocks[v].id = k
 end
 
-Module.LogicBlockTargetTypes = { 'Self', 'Main Assist', 'Auto Target', }
+Module.TargetTypes = { 'Self', 'Main Assist', 'Auto Target', }
 
-Module.LogicBlockTargetTypeIDs = {}
-for k, v in pairs(Module.LogicBlockTargetTypes) do
-    Module.LogicBlockTargetTypeIDs[v] = k
+Module.TargetTypeIDs = {}
+for k, v in pairs(Module.TargetTypes) do
+    Module.TargetTypeIDs[v] = k
 end
 
 
@@ -227,6 +227,7 @@ function Module:LoadSettings()
             table.insert(settings.Clickies,
                 {
                     itemName = clicky,
+                    target = 'Self',
                     conditions = {
                         [1] = {
                             ['type'] = 'Combat State',
@@ -244,6 +245,7 @@ function Module:LoadSettings()
             table.insert(settings.Clickies,
                 {
                     itemName = clicky,
+                    target = 'Self',
                     conditions = {
                         [1] = {
                             ['type'] = 'Combat State',
@@ -354,11 +356,29 @@ function Module:RenderConditionTargetCombo(cond, condIdx)
         ImGui.TableNextColumn()
         ImGui.Text("Target")
         ImGui.TableNextColumn()
-        local selectedNum, changed = ImGui.Combo("##clickie_cond_target_" .. "_" .. condIdx, tonumber(self.LogicBlockTargetTypeIDs[cond.target or "Self"]) or 1,
-            self.LogicBlockTargetTypes,
-            #self.LogicBlockTargetTypes)
+        local selectedNum, changed = ImGui.Combo("##clickie_cond_target_" .. "_" .. condIdx, tonumber(self.TargetTypeIDs[cond.target or "Self"]) or 1,
+            self.TargetTypes,
+            #self.TargetTypes)
         if changed then
-            cond.target = self.LogicBlockTargetTypes[selectedNum] or "Self"
+            cond.target = self.TargetTypes[selectedNum] or "Self"
+            self:SaveSettings(false)
+        end
+        ImGui.EndTable()
+    end
+end
+
+function Module:RenderClickieTargetCombo(clickie, clickieIdx)
+    if ImGui.BeginTable("##clickie_target_table_" .. clickieIdx, 2, bit32.bor(ImGuiTableFlags.None)) then
+        ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 50)
+        ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch, 0)
+        ImGui.TableNextColumn()
+        ImGui.Text("Target")
+        ImGui.TableNextColumn()
+        local selectedNum, changed = ImGui.Combo("##clickie_cond_target_" .. "_" .. clickieIdx, tonumber(self.TargetTypeIDs[clickie.target or "Self"]) or 1,
+            self.TargetTypes,
+            #self.TargetTypes)
+        if changed then
+            clickie.target = self.TargetTypes[selectedNum] or "Self"
             self:SaveSettings(false)
         end
         ImGui.EndTable()
@@ -426,6 +446,7 @@ function Module:RenderClickiesWithConditions(type, clickies)
             if mq.TLO.Cursor() then
                 table.insert(clickies, {
                     itemName = mq.TLO.Cursor.Name(),
+                    target = 'Self',
                     conditions = {},
                 })
                 self:SaveSettings(false)
@@ -439,6 +460,8 @@ function Module:RenderClickiesWithConditions(type, clickies)
                 if clicky.itemName:len() > 0 then
                     if ImGui.CollapsingHeader(clicky.itemName) then
                         ImGui.Indent()
+                        self:RenderClickieTargetCombo(clicky, clickyIdx)
+                        ImGui.SeparatorText("Usage Info")
                         self:RenderClickieData(clicky, clickyIdx)
                         ImGui.SeparatorText("Conditions");
                         ImGui.PushID("##clickie_conditions_btn_" .. clickyIdx)
@@ -608,9 +631,16 @@ function Module:GiveTime(combat_state)
                 Logger.log_verbose("Looking for clicky item: %s found: %s", clicky, Strings.BoolToColorString(item() ~= nil))
 
                 if item then
+                    target = mq.TLO.Me
+                    if clicky.target == "Main Assist" then
+                        target = Core.GetMainAssistSpawn()
+                    elseif clicky.target == "Auto Target" then
+                        target = Targeting.GetAutoTarget()
+                    end
+
                     self.TempSettings.ClickyState[clicky.itemName].item = item
                     if Casting.ItemReady(item()) then
-                        if Casting.DetItemCheck(item, target) then
+                        if Casting.DetItemCheck(item.Name(), target) then
                             Logger.log_verbose("\aaClicky: Item \at%s\ag Clicky: \at%s\ag!", item.Name(), item.Clicky.Spell.RankName.Name())
                             Casting.UseItem(item.Name(), Config.Globals.AutoTargetID)
                             self.TempSettings.ClickyState[clicky.itemName].lastUsed = os.clock()
